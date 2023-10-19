@@ -1,0 +1,36 @@
+version: "3"
+services:
+  clipasso-cpu:
+    build:
+      context: docker/cpu
+      dockerfile: Dockerfile
+    container_name: clipasso_cpu
+    volumes:
+      - ./work:/work
+      - ./:/CLIPasso
+      - ./CLIP-cache:/root/.cache/clip
+    ports: 
+      - 8888:8888
+    command: jupyter-lab --ip 0.0.0.0 --allow-root --NotebookApp.token=''
+    working_dir: /CLIPasso
+    tty: true
+  clipasso-gpu:
+    build:
+      context: docker/gpu
+      dockerfile: Dockerfile
+    container_name: clipasso_gpu
+    volumes:
+      - ./work:/work
+      - ./:/CLIPasso
+      - ./CLIP-cache:/root/.cache/clip
+    ports: 
+      - 8888:8888
+    command: jupyter-lab --ip 0.0.0.0 --allow-root --NotebookApp.token=''
+    working_dir: /CLIPasso
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
