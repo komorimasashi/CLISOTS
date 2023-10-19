@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "clisots"
+version = "0.1.0"
+description = ""
+authors = ["tsubasa652 <gp20a004@oecu.jp>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.11"
+torch = "1.13.1"
+scikit-image = "0.19.2"
+svgwrite = "^1.4.3"
+svgpathtools = "^1.6.1"
+cssutils = "^2.7.1"
+numba = "^0.57.1"
+torch-tools = "^0.1.5"
+visdom = "^0.2.4"
+imageio-ffmpeg = "^0.4.8"
+torchfile = "^0.1.0"
+wandb = "^0.15.5"
+ftfy = "^6.1.1"
+imageio = "2.4.1"
+regex = "^2023.6.3"
+tqdm = "^4.65.0"
+ipywidgets = "^8.0.7"
+torchvision = "0.14.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
