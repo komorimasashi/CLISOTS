@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import traceback
+import pydiffvg
 
 import numpy as np
 import PIL
@@ -91,6 +92,7 @@ def main(args):
     else:
         epoch_range = tqdm(range(args.num_iter))
 
+
     for epoch in epoch_range:
         if not args.display:
             epoch_range.refresh()
@@ -103,6 +105,8 @@ def main(args):
         sketches = renderer.get_image().to(args.device)
         losses_dict = loss_func(sketches, inputs.detach(
         ), renderer.get_color_parameters(), renderer, counter, optimizer)
+        # losses_dict = loss_func(prompt, sketches, inputs.detach(
+        # ), renderer.get_color_parameters(), renderer, counter, optimizer)
         loss = sum(list(losses_dict.values()))
         loss.backward()
         optimizer.step_()
@@ -171,6 +175,15 @@ def main(args):
     path_svg = os.path.join(args.output_dir, "best_iter.svg")
     utils.log_sketch_summary_final(
         path_svg, args.use_wandb, args.device, best_iter, best_loss, "best total")
+    
+    canvas_width, canvas_height, shapes, shape_groups = pydiffvg.svg_to_scene(path_svg)
+
+    scene_args = pydiffvg.RenderFunction.serialize_scene(\
+        canvas_width, canvas_height, shapes, shape_groups)
+    render = pydiffvg.RenderFunction.apply
+    img = render(canvas_width, canvas_height, 2, 2, 0, None, *scene_args)
+
+    pydiffvg.imwrite(img.cpu(), os.path.join(args.output_dir, "best_iter.png"), gamma=1.0)
 
     return configs_to_save
 

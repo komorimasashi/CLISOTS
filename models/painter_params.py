@@ -1,4 +1,7 @@
 import random
+from turtle import distance
+
+from matplotlib import pyplot as plt
 import CLIP_.clip as clip
 import numpy as np
 import pydiffvg
@@ -11,6 +14,8 @@ from scipy.ndimage.filters import gaussian_filter
 from skimage.color import rgb2gray
 from skimage.filters import threshold_otsu
 from torchvision import transforms
+from torchvision.utils import make_grid
+import mediapipe as mp
 
 
 class Painter(torch.nn.Module):
@@ -24,6 +29,7 @@ class Painter(torch.nn.Module):
         super(Painter, self).__init__()
 
         self.args = args
+        self.target_im =target_im
         self.num_paths = num_strokes
         self.num_segments = num_segments
         self.width = args.width
@@ -236,8 +242,8 @@ class Painter(torch.nn.Module):
         model, preprocess = clip.load(self.saliency_clip_model, device=self.device, jit=False)
         model.eval().to(self.device)
         data_transforms = transforms.Compose([
-                    preprocess.transforms[-1],
-                ])
+            preprocess.transforms[-1],
+        ])
         self.image_input_attn_clip = data_transforms(target_im).to(self.device)
         
 
@@ -287,17 +293,93 @@ class Painter(torch.nn.Module):
         attn_map_soft = np.copy(attn_map)
         attn_map_soft[attn_map > 0] = self.softmax(attn_map[attn_map > 0], tau=self.softmax_temp)
         
-        k = self.num_stages * self.num_paths
-        self.inds = np.random.choice(range(attn_map.flatten().shape[0]), size=k, replace=False, p=attn_map_soft.flatten())
-        self.inds = np.array(np.unravel_index(self.inds, attn_map.shape)).T
-    
+        # k = self.num_stages * self.num_paths
+        # self.inds = np.random.choice(range(attn_map.flatten().shape[0]), size=k, replace=False, p=attn_map_soft.flatten())
+        # self.inds = np.array(np.unravel_index(self.inds, attn_map.shape)).T
+
+        landmarks = self.get_landmarks(self.target_im)
+        self.inds = np.array([[landmark["y"], landmark["x"]] for landmark in landmarks])
+
+        # inds plot
+
+        # main_im = make_grid(self.target_im, normalize=True, pad_value=2)
+        # main_im = np.transpose(main_im.cpu().numpy(), (1, 2, 0))
+
+        # fig = plt.figure(figsize=(main_im.shape[1]/10, main_im.shape[0]/10))
+        # ax = fig.add_axes([0,0,1,1])
+        # ax.imshow(main_im, interpolation='nearest')
+        # ax.scatter(self.inds[:, 1], self.inds[:, 0], s=400, c='red', marker='o')
+        # ax.set_aspect('auto')
+        # fig.canvas.draw()
+        # fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+        # plt.axis('tight')
+        # plt.axis('off')
+
+        # plt.savefig("inds.png")
+
         self.inds_normalised = np.zeros(self.inds.shape)
         self.inds_normalised[:, 0] =  self.inds[:, 1] / self.canvas_width
         self.inds_normalised[:, 1] =  self.inds[:, 0] / self.canvas_height
         self.inds_normalised = self.inds_normalised.tolist()
         return attn_map_soft
 
+    def get_landmarks(self, inputs):
+        index_list = [
+            10, 103, 127, 152, 172, 332, 356, 397,
+            46, 52, 55, 285, 282, 276,
+            291, 17, 11, 61,
+            2, 358, 5, 129,
+            33, 145, 159, 133, 362, 386, 374, 263,
+            280, 50,
+            400, 379, 288, 323,
+            176, 150, 58, 93,
+            70, 105, 107, 336, 334, 300
+        ]
 
+        landmarks = []
+
+        mp_face_mesh = mp.solutions.face_mesh 
+
+        face_mesh = mp_face_mesh.FaceMesh(
+            static_image_mode=True,
+            max_num_faces=1,
+            min_detection_confidence=0.5)
+    
+        inputs = inputs.clone()
+
+        tmp = unnorm(inputs[0,:,:,:]).permute(1, 2, 0)
+        tmp = tmp.to('cpu').detach().numpy()
+        rgb = (tmp*255).astype(np.uint8)
+
+        h, w, _ = rgb.shape
+        results = face_mesh.process(rgb)
+
+        face_landmarks = results.multi_face_landmarks[0]
+            
+        for i, landmark in enumerate(face_landmarks.landmark):
+            if i not in index_list:
+                continue
+
+            landmarks.append(
+                {
+                    "x": int(landmark.x * w),
+                    "y": int(landmark.y * h)
+                }
+            )
+
+        # eye
+        for index in [[386, 380], [159, 153]]:
+            distance_x = face_landmarks.landmark[index[0]].x - face_landmarks.landmark[index[1]].x
+            distance_y = face_landmarks.landmark[index[0]].y - face_landmarks.landmark[index[1]].y
+
+            landmarks.append(
+                {
+                    "x": int((face_landmarks.landmark[index[0]].x - (distance_x / 2)) * w),
+                    "y": int((face_landmarks.landmark[index[0]].y - (distance_y / 2)) * h)
+                }
+            )
+
+        return landmarks
 
     def set_inds_dino(self):
         k = max(3, (self.num_stages * self.num_paths) // 6 + 1) # sample top 3 three points from each attention head
@@ -537,3 +619,9 @@ class XDoG_(object):
             imdiff = imdiff >= th
         imdiff = imdiff.astype('float32')
         return imdiff
+
+
+def unnorm(img, mean=[0.5, 0.5, 0.5], std=[0.25, 0.25, 0.25]):
+    for t, m, s in zip(img, mean, std):
+        t.mul_(s).add_(m)
+    return img 

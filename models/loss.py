@@ -1,6 +1,7 @@
 
 import collections
 import CLIP_.clip as clip
+import clip as clip_original
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
@@ -350,26 +351,37 @@ class CLIPConvLoss(torch.nn.Module):
                 "Cos": cos_layers
             }
 
-        self.model, clip_preprocess = clip.load(
-            self.clip_model_name, args.device, jit=False)
+        # self.model, clip_preprocess = clip.load(
+        #     self.clip_model_name, args.device, jit=False)
 
-        if self.clip_model_name.startswith("ViT"):
-            self.visual_encoder = CLIPVisualEncoder(self.model)
+        self.prompt = clip_original.tokenize(args.prompt).to(args.device)
+        
+        self.RN_model, clip_preprocess = clip.load(
+            "RN101", args.device, jit=False)
+        
+        self.ViT_model, _ = clip_original.load(
+            "ViT-B/32", args.device, jit=False)
 
-        else:
-            self.visual_model = self.model.visual
-            layers = list(self.model.visual.children())
-            init_layers = torch.nn.Sequential(*layers)[:8]
-            self.layer1 = layers[8]
-            self.layer2 = layers[9]
-            self.layer3 = layers[10]
-            self.layer4 = layers[11]
-            self.att_pool2d = layers[12]
+        # if self.clip_model_name.startswith("ViT"):
+        # self.visual_encoder = CLIPVisualEncoder(self.model)
+
+        # else:
+        self.visual_model = self.RN_model.visual
+        layers = list(self.RN_model.visual.children())
+        init_layers = torch.nn.Sequential(*layers)[:8]
+        self.layer1 = layers[8]
+        self.layer2 = layers[9]
+        self.layer3 = layers[10]
+        self.layer4 = layers[11]
+        self.att_pool2d = layers[12]
+        
+        # end
 
         self.args = args
 
         self.img_size = clip_preprocess.transforms[1].size
-        self.model.eval()
+        self.RN_model.eval()
+        self.ViT_model.eval()
         self.target_transform = transforms.Compose([
             transforms.ToTensor(),
         ])  # clip normalisation
@@ -379,7 +391,8 @@ class CLIPConvLoss(torch.nn.Module):
             clip_preprocess.transforms[-1],  # Normalize
         ])
 
-        self.model.eval()
+        self.RN_model.eval()
+        self.ViT_model.eval()
         self.device = args.device
         self.num_augs = self.args.num_aug_clip
 
@@ -405,6 +418,7 @@ class CLIPConvLoss(torch.nn.Module):
         sketch: Torch Tensor [1, C, H, W]
         target: Torch Tensor [1, C, H, W]
         """
+
         #         y = self.target_transform(target).to(self.args.device)
         conv_loss_dict = {}
         x = sketch.to(self.device)
@@ -420,15 +434,21 @@ class CLIPConvLoss(torch.nn.Module):
         xs = torch.cat(sketch_augs, dim=0).to(self.device)
         ys = torch.cat(img_augs, dim=0).to(self.device)
 
-        if self.clip_model_name.startswith("RN"):
-            xs_fc_features, xs_conv_features = self.forward_inspection_clip_resnet(
-                xs.contiguous())
-            ys_fc_features, ys_conv_features = self.forward_inspection_clip_resnet(
-                ys.detach())
+        # if self.clip_model_name.startswith("RN"):
+        _, xs_conv_features = self.forward_inspection_clip_resnet(
+            xs.contiguous())
+        _, ys_conv_features = self.forward_inspection_clip_resnet(
+            ys.detach())
 
-        else:
-            xs_fc_features, xs_conv_features = self.visual_encoder(xs)
-            ys_fc_features, ys_conv_features = self.visual_encoder(ys)
+        # else:
+        # xs_fc_features, xs_conv_features = self.visual_encoder(xs)
+        # ys_fc_features, ys_conv_features = self.visual_encoder(ys)
+
+        xs_fc_features = self.ViT_model.encode_image(xs).float()
+        # ys_fc_features = self.ViT_model.encode_image(ys).float()
+        ys_fc_features = self.ViT_model.encode_text(self.prompt).float()
+        
+        # end
 
         conv_loss = self.distance_metrics[self.clip_conv_loss_type](
             xs_conv_features, ys_conv_features, self.clip_model_name)

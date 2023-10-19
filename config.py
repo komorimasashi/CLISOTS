@@ -7,6 +7,14 @@ import pydiffvg
 import torch
 import wandb
 
+def get_default_device() -> str:
+    if torch.cuda.is_available():
+        return "cuda"
+    elif getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+        return "mps"
+    else:
+        return "cpu"
+
 
 def set_seed(seed):
     random.seed(seed)
@@ -101,10 +109,12 @@ def parse_arguments():
     parser.add_argument("--clip_conv_loss_type", type=str, default="L2")
     parser.add_argument("--clip_conv_layer_weights",
                         type=str, default="0,0,1.0,1.0,0")
-    parser.add_argument("--clip_model_name", type=str, default="RN101")
+    parser.add_argument("--clip_model_name", type=str, default="ViT-B/32")
+    # parser.add_argument("--clip_model_name", type=str, default="RN101")
     parser.add_argument("--clip_fc_loss_weight", type=float, default=0.1)
     parser.add_argument("--clip_text_guide", type=float, default=0)
     parser.add_argument("--text_target", type=str, default="none")
+    parser.add_argument("--prompt", type=str, default="")
 
     args = parser.parse_args()
     set_seed(args.seed)
@@ -128,8 +138,7 @@ def parse_arguments():
                    config=args, name=args.wandb_name, id=wandb.util.generate_id())
 
     if args.use_gpu:
-        args.device = torch.device("cuda" if (
-            torch.cuda.is_available() and torch.cuda.device_count() > 0) else "cpu")
+        args.device = torch.device(get_default_device())
     else:
         args.device = torch.device("cpu")
     pydiffvg.set_use_gpu(torch.cuda.is_available() and args.use_gpu)

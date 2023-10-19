@@ -88,7 +88,7 @@ if os.path.exists(f"{cur_path}/config.npy"):
         sketch = Image.fromarray((sketch * 255).astype('uint8'), 'RGB')
         # print("{0}/iter_{1:04}.png".format(cur_path, int(i_)))
         sketch.save("{0}/{1}/iter_{2:04}.png".format(cur_path, "svg_to_png", int(i_)))
-        sketches.append(sketch)
+        sketches.append(np.asarray(sketch))
     imageio.mimsave(f"{cur_path}/sketch.gif", sketches)
 
 print(cur_path)
