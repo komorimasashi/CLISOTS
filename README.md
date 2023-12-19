@@ -6,6 +6,9 @@ CLISOTS(CLIP based Semantic Oriented Testimony to portrait Sketch)は言語的�
 
 この研究はHCGシンポジウム2023で発表しました。
 
+HCGシンポジウム2023で学生優秀インタラクティブ発表賞を受賞しました。
+[HCGシンポジウム2023 受賞者一覧](https://www.hcg-ieice.org/hcg-symposium/2023/award/)
+
 ![conceptual_diagram](https://github.com/tsubasa652/CLISOTS/assets/34929737/69a89c35-43a6-44fd-83be-af593a02c925)
 
 ## Related Work
