@@ -2,7 +2,7 @@
 
 [[Paper]](https://github.com/tsubasa652/CLISOTS/files/13711880/CLISOTS.pdf) [[Poster]](https://github.com/tsubasa652/CLISOTS/files/13711883/HCG.pdf) [[Colab]](https://colab.research.google.com/github/tsubasa652/CLISOTS/blob/main/CLISOTS.ipynb)
 
-CLISOTS(CLIP based Semantic Oriented Testimony to portrait Sketch 1)は言語的な表現から逐次的に正面顔スケッチ画像を生成するシステムです。
+CLISOTS(CLIP based Semantic Oriented Testimony to portrait Sketch)は言語的な表現から逐次的に正面顔スケッチ画像を生成するシステムです。
 
 この研究はHCGシンポジウム2023で発表しました。
 
